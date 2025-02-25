@@ -5,8 +5,8 @@ from typing import Tuple
 from functools import partial
 
 from .utils import is_offline_exception
+from .templates import template
 from .miot_spec import (MiotSpec, MiotProperty, MiotAction)
-from .templates import CUSTOM_TEMPLATES
 from .miio2miot_specs import MIIO_TO_MIOT_SPECS
 import homeassistant.helpers.config_validation as cv
 
@@ -20,17 +20,17 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class Miio2MiotHelper:
-    def __init__(self, hass, config: dict, miot_spec: MiotSpec):
+    def __init__(self, hass, config: dict, miot_spec: MiotSpec, from_model=None):
         self.hass = hass
         if ext := config.get('extend_model'):
             if m2m := Miio2MiotHelper.from_model(hass, ext, miot_spec):
-                sps = m2m.config.get('miio_specs', {})
+                sps = {**m2m.config.get('miio_specs', {})}
                 sps.update(config.get('miio_specs', {}))
                 config = {**m2m.config, **config, 'miio_specs': sps}
         self.config = config
         self.miot_spec = miot_spec
         self.specs = config.get('miio_specs', {})
-        self.model = config.get('model', None)
+        self.model = from_model or config.get('model', None)
         self.miio_props = []
         for k, v in self.specs.items():
             if p := v.get('prop'):
@@ -39,13 +39,15 @@ class Miio2MiotHelper:
         self.miio_props_values = {}
 
     @staticmethod
-    def from_model(hass, model, miot_spec):
+    def from_model(hass, model, miot_spec, from_model=None):
+        if not from_model:
+            from_model = model
         cfg = MIIO_TO_MIOT_SPECS.get(model) or {}
         if isinstance(cfg, str):
-            return Miio2MiotHelper.from_model(hass, cfg, miot_spec)
+            return Miio2MiotHelper.from_model(hass, cfg, miot_spec, from_model)
         if cfg:
             cfg.setdefault('model', model)
-            return Miio2MiotHelper(hass, cfg, miot_spec)
+            return Miio2MiotHelper(hass, cfg, miot_spec, from_model)
         return None
 
     def extend_miio_props(self, props: list):
@@ -74,28 +76,31 @@ class Miio2MiotHelper:
                 pms = c.get('params', [])
                 try:
                     vls = device.send(c['method'], pms)
-                except (DeviceException, OSError) as exc:
+                except (DeviceException, OSError, TypeError, UnboundLocalError) as exc:
                     if is_offline_exception(exc):
                         raise exc
-                    _LOGGER.error('%s: Got MiioException: %s while %s(%s)', self.model, exc, c['method'], pms)
+                    if not c.get('ignore_error'):
+                        _LOGGER.error('%s: Got MiioException: %s while %s(%s)', self.model, exc, c['method'], pms)
                     continue
                 kls = c.get('values', [])
                 if kls is True:
                     kls = c.get('params', [])
                 if tpl := c.get('template'):
-                    tpl = CUSTOM_TEMPLATES.get(tpl, tpl)
-                    tpl = cv.template(tpl)
-                    tpl.hass = self.hass
+                    tpl = template(tpl, self.hass)
                     pdt = tpl.render({'results': vls})
                     if isinstance(pdt, dict):
                         dic.update(pdt)
                 elif kls:
-                    if len(kls) == len(vls):
-                        dic.update(dict(zip(kls, vls)))
+                    if isinstance(vls, dict):
+                        vls = list(vls.values())
+                    i = 0
+                    for k in kls:
+                        if i >= len(vls):
+                            break
+                        dic[k] = vls[i]
+                        i += 1
         if tpl := self.config.get('miio_template'):
-            tpl = CUSTOM_TEMPLATES.get(tpl, tpl)
-            tpl = cv.template(tpl)
-            tpl.hass = self.hass
+            tpl = template(tpl, self.hass)
             pdt = tpl.render({'props': dic})
             if isinstance(pdt, dict):
                 dic.update(pdt)
@@ -126,9 +131,7 @@ class Miio2MiotHelper:
                     fmt = c.get('format')
                     try:
                         if tpl := c.get('template', {}):
-                            tpl = CUSTOM_TEMPLATES.get(tpl, tpl)
-                            tpl = cv.template(tpl)
-                            tpl.hass = self.hass
+                            tpl = template(tpl, self.hass)
                             val = tpl.render({
                                 'value': val,
                                 'props': dic,
@@ -138,7 +141,7 @@ class Miio2MiotHelper:
                                 'step': prop.range_step(),
                                 'description': prop.list_description(val) if prop.value_list else None,
                             })
-                    
+
                         elif fmt and hasattr(mph, fmt):
                             val = getattr(mph, fmt)(val)
 
@@ -185,9 +188,7 @@ class Miio2MiotHelper:
             mph = MiioPropertyHelper(prop, reverse=True)
             fmt = cfg.get('format')
             if tpl := cfg.get('set_template'):
-                tpl = CUSTOM_TEMPLATES.get(tpl, tpl)
-                tpl = cv.template(tpl)
-                tpl.hass = self.hass
+                tpl = template(tpl, self.hass)
                 pms = tpl.render({
                     'value': value,
                     'props': self.miio_props_values,
@@ -234,9 +235,7 @@ class Miio2MiotHelper:
         act = self.miot_spec.specs.get(key)
         if act and isinstance(act, MiotAction):
             if tpl := cfg.get('set_template'):
-                tpl = CUSTOM_TEMPLATES.get(tpl, tpl)
-                tpl = cv.template(tpl)
-                tpl.hass = self.hass
+                tpl = template(tpl, self.hass)
                 pms = tpl.render({
                     'params': pms,
                     'props': self.miio_props_values,
@@ -244,7 +243,7 @@ class Miio2MiotHelper:
                 if isinstance(pms, dict) and 'method' in pms:
                     setter = pms.get('method', setter)
                     pms = pms.get('params', [])
-        pms = cv.ensure_list(pms)
+            pms = cv.ensure_list(pms)
         if not setter:
             _LOGGER.warning('%s: Call miio method via miot action failed: %s', self.model, [key, setter, cfg])
             return None

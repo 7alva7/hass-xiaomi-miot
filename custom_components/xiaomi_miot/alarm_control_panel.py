@@ -1,17 +1,17 @@
 """Support alarm_control_panel entity for Xiaomi Miot."""
 import logging
 
-from homeassistant.const import *  # noqa: F401
 from homeassistant.components.alarm_control_panel import (
     DOMAIN as ENTITY_DOMAIN,
     AlarmControlPanelEntity,
+    AlarmControlPanelEntityFeature,  # v2022.5
 )
-from homeassistant.components.alarm_control_panel.const import *
 
 from . import (
     DOMAIN,
     CONF_MODEL,
     XIAOMI_CONFIG_SCHEMA as PLATFORM_SCHEMA,  # noqa: F401
+    HassEntry,
     MiotEntity,
     async_setup_config_entry,
     bind_services_to_entries,
@@ -20,6 +20,7 @@ from .core.miot_spec import (
     MiotSpec,
     MiotService,
 )
+from .core.const import AlarmControlPanelState
 
 _LOGGER = logging.getLogger(__name__)
 DATA_KEY = f'{ENTITY_DOMAIN}.{DOMAIN}'
@@ -28,6 +29,7 @@ SERVICE_TO_METHOD = {}
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
+    HassEntry.init(hass, config_entry).new_adder(ENTITY_DOMAIN, async_add_entities)
     await async_setup_config_entry(hass, config_entry, async_setup_platform, async_add_entities, ENTITY_DOMAIN)
 
 
@@ -53,22 +55,17 @@ class MiotAlarmEntity(MiotEntity, AlarmControlPanelEntity):
     def __init__(self, config, miot_service: MiotService):
         super().__init__(miot_service, config=config, logger=_LOGGER)
         self._attr_code_arm_required = False
-        self._is_mgl03 = self._model == 'lumi.gateway.mgl03'
+        self._is_mgl03 = self.model == 'lumi.gateway.mgl03'
         self._prop_mode = miot_service.get_property('arming_mode')
         if self._prop_mode:
             if self._prop_mode.list_value('home_arming') is not None:
-                self._supported_features |= SUPPORT_ALARM_ARM_HOME
+                self._supported_features |= AlarmControlPanelEntityFeature.ARM_HOME
             if self._prop_mode.list_value('away_arming') is not None:
-                self._supported_features |= SUPPORT_ALARM_ARM_AWAY
+                self._supported_features |= AlarmControlPanelEntityFeature.ARM_AWAY
             if self._prop_mode.list_value('sleep_arming') is not None:
-                self._supported_features |= SUPPORT_ALARM_ARM_NIGHT
+                self._supported_features |= AlarmControlPanelEntityFeature.ARM_NIGHT
             if self._is_mgl03:
-                self._supported_features |= SUPPORT_ALARM_TRIGGER
-
-    @property
-    def state(self):
-        """Return the state of the entity."""
-        return self._attr_state
+                self._supported_features |= AlarmControlPanelEntityFeature.TRIGGER
 
     async def async_update(self):
         await super().async_update()
@@ -77,24 +74,27 @@ class MiotAlarmEntity(MiotEntity, AlarmControlPanelEntity):
         self.update_state()
 
     def update_state(self):
+        sta = None
         if self._prop_mode:
-            val = self._prop_mode.from_dict(self._state_attrs)
+            val = self._prop_mode.from_device(self.device)
             des = self._prop_mode.list_description(val) if val is not None else None
             if des is not None:
                 des = f'{des}'.lower()
                 if 'basic' in des:
-                    self._attr_state = STATE_ALARM_DISARMED
+                    sta = AlarmControlPanelState.DISARMED
                 elif 'home' in des:
-                    self._attr_state = STATE_ALARM_ARMED_HOME
+                    sta = AlarmControlPanelState.ARMED_HOME
                 elif 'away' in des:
-                    self._attr_state = STATE_ALARM_ARMED_AWAY
+                    sta = AlarmControlPanelState.ARMED_AWAY
                 elif 'sleep' in des:
-                    self._attr_state = STATE_ALARM_ARMED_NIGHT
+                    sta = AlarmControlPanelState.ARMED_NIGHT
         if self._is_mgl03:
-            val = self._state_attrs.get('arming.alarm')
-            if val:
-                self._attr_state = STATE_ALARM_TRIGGERED
-        return self._attr_state
+            if self.device.props.get('arming.alarm'):
+                sta = AlarmControlPanelState.TRIGGERED
+        if hasattr(self, '_attr_alarm_state'):
+            self._attr_alarm_state = sta
+        else:
+            self._attr_state = sta
 
     def set_arm_mode(self, mode):
         ret = False

@@ -20,16 +20,20 @@ This component uses the **miot** protocol to automatically integrate Xiaomi devi
 
 #### Method 1: [HACS](https://hacs.xyz)
 - First installation
-    > HACS > Integrations > ➕ EXPLORE & DOWNLOAD REPOSITORIES > `Xiaomi Miot Auto` > DOWNLOAD THIS REPOSITORY
+    > HACS > Integrations > ➕ EXPLORE & DOWNLOAD REPOSITORIES > [`Xiaomi Miot Auto`](https://my.home-assistant.io/redirect/hacs_repository/?owner=al-one&repository=hass-xiaomi-miot) > DOWNLOAD THIS REPOSITORY
 - Update component
-    > HACS > Integrations > `Xiaomi Miot Auto` > UPDATE / Redownload
+    > HACS > Integrations > [`Xiaomi Miot Auto`](https://my.home-assistant.io/redirect/hacs_repository/?owner=al-one&repository=hass-xiaomi-miot) > UPDATE / Redownload
 
 #### Method 2: Manually installation via Samba / SFTP
 > Download and copy `custom_components/xiaomi_miot` folder to `custom_components` folder in your HomeAssistant config folder
 
 #### Method 3: Onkey shell via SSH / Terminal & SSH add-on
 ```shell
-wget -q -O - https://raw.githubusercontent.com/al-one/hass-xiaomi-miot/master/install.sh | ARCHIVE_TAG=latest bash -
+wget -O - https://get.hacs.vip | DOMAIN=xiaomi_miot bash -
+
+# Or
+
+wget -O - https://raw.githubusercontent.com/al-one/hass-xiaomi-miot/master/install.sh | ARCHIVE_TAG=latest bash -
 ```
 
 #### Method 4: shell_command service
@@ -37,10 +41,11 @@ wget -q -O - https://raw.githubusercontent.com/al-one/hass-xiaomi-miot/master/in
     ```yaml
     shell_command:
       update_xiaomi_miot: |-
-        wget -q -O - https://raw.githubusercontent.com/al-one/hass-xiaomi-miot/master/install.sh | ARCHIVE_TAG=latest bash -
+        wget -O - https://get.hacs.vip | DOMAIN=xiaomi_miot bash -
     ```
 2. Restart HA core
 3. Call this [`service: shell_command.update_xiaomi_miot`](https://my.home-assistant.io/redirect/developer_call_service/?service=shell_command.update_xiaomi_miot) in Developer Tools
+2. Restart HA core again
 
 
 ## Config
@@ -193,25 +198,26 @@ This component has added support for configuration reloading (to avoid having to
 - 🗣️ [intelligent-speaker](https://home.miot-spec.com/s/wifispeaker) [❓️](https://github.com/al-one/hass-xiaomi-miot/issues/100#issuecomment-885989099)
 - 🎮️ [ir-remote-control](https://home.miot-spec.com/s/chuangmi.remote) [❓️](https://github.com/al-one/hass-xiaomi-miot/commit/fbcc8063783e53b9480574536a034d338634f4e8#commitcomment-56563663)
 - 🔐 [lock](https://home.miot-spec.com/s/lock) / 🚪 [door](https://home.miot-spec.com/s/door)
-- 👕 [washer](https://home.miot-spec.com/s/washer) / [fridge](https://home.miot-spec.com/s/fridge)
+- 👕 [washer](https://home.miot-spec.com/s/washer) / [dryer](https://home.miot-spec.com/s/dry) / [fridge](https://home.miot-spec.com/s/fridge)
 - 🚰 [water-purifier](https://home.miot-spec.com/s/waterpuri) / [kettle](https://home.miot-spec.com/s/kettle)
-- ♻️ [air-purifier](https://home.miot-spec.com/s/airpurifier) / [air-fresh](https://home.miot-spec.com/s/airfresh)
+- ♻️ [air-purifier](https://home.miot-spec.com/s/airpurifier) / [air-fresh](https://home.miot-spec.com/s/airfresh) / [hood](https://home.miot-spec.com/s/hood)
 - 🌡 [temperature-humidity-sensor](https://home.miot-spec.com/s/sensor_ht) / [submersion-sensor](https://home.miot-spec.com/s/flood) / [smoke-sensor](https://home.miot-spec.com/s/sensor_smoke)
-- 🥘 [cooker](https://home.miot-spec.com/s/cooker) / [pressure-cooker](https://home.miot-spec.com/s/pre_cooker)
+- 🥘 [cooker](https://home.miot-spec.com/s/cooker) / [pressure-cooker](https://home.miot-spec.com/s/pre_cooker) / [electric-steamer](https://home.miot-spec.com/s/esteamer)
 - 🍲 [induction-cooker](https://home.miot-spec.com/s/ihcooker) / [oven](https://home.miot-spec.com/s/oven) / [microwave](https://home.miot-spec.com/s/microwave)
 - 🍗 [air-fryer](https://home.miot-spec.com/s/fryer) / [multifunction-cooking-pot](https://home.miot-spec.com/s/mfcp)
 - 🍵 [health-pot](https://home.miot-spec.com/s/health_pot) / ☕️ [coffee-machine](https://home.miot-spec.com/s/coffee)
 - 🍹 [juicer](https://home.miot-spec.com/s/juicer) / [fruit-vegetable-purifier](https://home.miot-spec.com/s/f_washer)
-- ♨️ [water-heater](https://home.miot-spec.com/s/waterheater) / [hood](https://home.miot-spec.com/s/hood) / [dishwasher](https://home.miot-spec.com/s/dishwasher)
-- 🦠 [steriliser](https://home.miot-spec.com/s/steriliser)
+- ♨️ [water-heater](https://home.miot-spec.com/s/waterheater) / [dishwasher](https://home.miot-spec.com/s/dishwasher) / [foot-bath](https://home.miot-spec.com/s/foot_bath)
+- 🦠 [steriliser](https://home.miot-spec.com/s/steriliser) / [towel-rack](https://home.miot-spec.com/s/.tow)
 - 🪟 [curtain](https://home.miot-spec.com/s/curtain) / [window-opener](https://home.miot-spec.com/s/wopener) / [airer](https://home.miot-spec.com/s/airer)
 - 🧹 [vacuum](https://home.miot-spec.com/s/vacuum) / [mopping-machine](https://home.miot-spec.com/s/.mop)
-- 💦 [humidifier](https://home.miot-spec.com/s/humidifier) / [dehumidifier](https://home.miot-spec.com/s/derh)
+- 💦 [humidifier](https://home.miot-spec.com/s/humidifier) / [dehumidifier](https://home.miot-spec.com/s/derh) / [diffuser](https://home.miot-spec.com/s/diffuser)
 - 🍃 [air-monitor](https://home.miot-spec.com/s/airmonitor) / 🪴 [plant-monitor](https://home.miot-spec.com/s/plantmonitor)
 - 🛏 [bed](https://home.miot-spec.com/s/bed) / [blanket](https://home.miot-spec.com/s/blanket) / 😴 [sleep-monitor](https://home.miot-spec.com/s/lunar)
+- 💺 [chair](https://home.miot-spec.com/s/chair) / [table](https://home.miot-spec.com/s/desk)
 - 💆 [massager](https://home.miot-spec.com/s/massage) / [magic-touch](https://home.miot-spec.com/s/magic_touch)
-- 🏃 [walking-pad](https://home.miot-spec.com/s/walkingpad) / [treadmill](https://home.miot-spec.com/s/treadmill) / [table](https://home.miot-spec.com/s/desk)
-- 🚽 [toilet](https://home.miot-spec.com/s/toilet) /️ [towel-rack](https://home.miot-spec.com/s/.tow) /️ 🪥 [toothbrush](https://home.miot-spec.com/s/toothbrush)
+- 🏃 [walking-pad](https://home.miot-spec.com/s/walkingpad) / [treadmill](https://home.miot-spec.com/s/treadmill)
+- 🚽 [toilet](https://home.miot-spec.com/s/toilet) / [cat-toilet](https://home.miot-spec.com/s/litter_box) / 🪥 [toothbrush](https://home.miot-spec.com/s/toothbrush)
 - 🐱 [pet-feeder](https://home.miot-spec.com/s/feeder) / ⛲ [pet-drinking-fountain](https://home.miot-spec.com/s/pet_waterer) / 🐟 [fish-tank](https://home.miot-spec.com/s/fishbowl)
 - 🦟 [mosquito-dispeller](https://home.miot-spec.com/s/mosq) / [germicidal-lamp](https://home.miot-spec.com/s/s_lamp)
 - 🚘 [rearview-mirror](https://home.miot-spec.com/s/rv_mirror) / [head-up-display](https://home.miot-spec.com/s/hud)
@@ -221,7 +227,18 @@ This component has added support for configuration reloading (to avoid having to
 - 🌐 [router](https://home.miot-spec.com/s/router) / 🖨 [printer](https://home.miot-spec.com/s/printer)
 
 
+### Unsupported devices
+
+> This component uses the polling method to obtain the device state, so it cannot listen the events of some devices in real time.
+
+- Wireless Switch (like: [lumi.sensor_switch.v1](https://home.miot-spec.com/s/lumi.sensor_switch.v1) / [lumi.remote.b686opcn01](https://home.miot-spec.com/s/lumi.remote.b686opcn01))
+- Motion Sensor (like: [lumi.sensor_motion.v1](https://home.miot-spec.com/s/lumi.sensor_motion.v1))
+- Window and Door Sensor (like: [lumi.sensor_magnet.v1](https://home.miot-spec.com/s/lumi.sensor_magnet.v1))
+
+
 ## Services
+
+> Since the HA support service response has been for some time, this component no longer triggers events starting from v0.7.18.
 
 #### [`xiaomi_miot.set_property`](https://my.home-assistant.io/redirect/developer_call_service/?service=xiaomi_miot.set_property)
 ```yaml
@@ -248,13 +265,11 @@ service: xiaomi_miot.get_properties
 data:
   entity_id: camera.isa_hlc7_1ab7
   mapping:
-    power:
-      siid: 2
+    - siid: 2
       piid: 1
-    night:
-      siid: 2
-      piid: 3
-  throw: true # throw result to HA notifications
+    - siid: 3
+      piid: 2
+  update_entity: true # Update to entity state attributes
 ```
 
 #### [`xiaomi_miot.call_action`](https://my.home-assistant.io/redirect/developer_call_service/?service=xiaomi_miot.call_action)
@@ -267,7 +282,6 @@ data:
   params:
     - 18 # piid: 1 - work-mode
     - '{"selects":[[7,1,0,2,1]]}' # piid: 10 - clean-extend-data
-  throw: true # throw result to HA notifications
 ```
 
 #### [`xiaomi_miot.send_command`](https://my.home-assistant.io/redirect/developer_call_service/?service=xiaomi_miot.send_command)
@@ -278,7 +292,6 @@ data:
   method: set_power
   params:
     - on
-  throw: true # throw result to HA notifications
 ```
 
 #### [`xiaomi_miot.get_token`](https://my.home-assistant.io/redirect/developer_call_service/?service=xiaomi_miot.get_token)
@@ -303,6 +316,26 @@ data:
 service: xiaomi_miot.xiaoai_wakeup
 data:
   entity_id: media_player.xiaoai_lx04_xxxx
+```
+
+#### [`xiaomi_miot.renew_devices`](https://my.home-assistant.io/redirect/developer_call_service/?service=xiaomi_miot.renew_devices)
+```yaml
+service: xiaomi_miot.renew_devices
+data:
+  username: 80001234 # Xiaomi Account ID / Email / Phone
+```
+
+#### [`xiaomi_miot.request_xiaomi_api`](https://my.home-assistant.io/redirect/developer_call_service/?service=xiaomi_miot.request_xiaomi_api)
+```yaml
+service: xiaomi_miot.request_xiaomi_api
+data:
+  entity_id: sensor.your_entity_id
+  api: /v2/plugin/fetch_plugin
+  data:
+    latest_req:
+      api_version: 10070
+      plugins:
+        - model: brand.device.model
 ```
 
 > [More services](https://github.com/al-one/hass-xiaomi-miot/blob/master/custom_components/xiaomi_miot/services.yaml)
@@ -333,7 +366,7 @@ logger:
   2. Select [`xiaomi_miot.get_token`](https://my.home-assistant.io/redirect/developer_call_service/?service=xiaomi_miot.get_token), Enter the keyword of device name
   3. Find the token from the HA notifications
 - Use MiHome mod by [@vevsvevs](https://github.com/custom-components/ble_monitor/issues/7#issuecomment-595874419)
-  1. Down apk from [СКАЧАТЬ ВЕРСИЮ 6.x.x](https://www.kapiba.ru/2017/11/mi-home.html) and install
+  1. Down apk from [СКАЧАТЬ ВЕРСИЮ 7.x.x](https://www.vevs.me/2017/11/mi-home.html) and install
   2. Start Mihome APP > Profile > Experimental features
   3. Check on `Write custom log files` and `Enable app's debug mode`
   4. Find the token from `vevs/logs/misc/devices.txt` after restart app
@@ -341,3 +374,9 @@ logger:
   1. Download and run [token_extractor.exe](https://github.com/PiotrMachowski/Xiaomi-cloud-tokens-extractor/blob/master/token_extractor.exe) for Windows or install [for Python](https://github.com/PiotrMachowski/Xiaomi-cloud-tokens-extractor#other-platforms)
   2. Enter username, password and your server region
   3. Extracts tokens from your cloud account. Also reveals the bind_key for BT devices
+
+
+## Thanks
+
+- [PyCharm](https://www.jetbrains.com/pycharm/)
+- [Dler](https://dler.pro/auth/register?affid=130833) (10% Discount coupon for new user: `CXVbfhHuSRsi`)

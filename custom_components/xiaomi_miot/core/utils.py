@@ -1,18 +1,148 @@
-import time
+import os
 import re
+import json
 import locale
 import tzlocal
-import requests
-from functools import partial
-from datetime import timezone
+import voluptuous as vol
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import Entity
+from homeassistant.util import language as language_util
+from homeassistant.util.dt import DEFAULT_TIME_ZONE, get_time_zone
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import homeassistant.helpers.config_validation as cv
+
+from .const import DOMAIN, DEVICE_CUSTOMIZES, DATA_CUSTOMIZE
+from .translation_languages import TRANSLATION_LANGUAGES
 
 
-def local_zone():
+def get_value(obj, key, def_value=None, sep='.'):
+    keys = f'{key}'.split(sep)
+    result = obj
+    for k in keys:
+        if result is None:
+            return None
+        if isinstance(result, dict):
+            result = result.get(k, def_value)
+        elif isinstance(result, (list, tuple)):
+            try:
+                result = result[int(k)]
+            except Exception:
+                result = def_value
+    return result
+
+def get_customize_via_model(model, key=None, default=None):
+    cfg = {}
+    for m in wildcard_models(model):
+        cus = DEVICE_CUSTOMIZES.get(m) or {}
+        if key is not None and key not in cus:
+            continue
+        if cus:
+            cfg = {**cus, **cfg}
+    return cfg if key is None else cfg.get(key, default)
+
+def get_customize_via_entity(entity, key=None, default=None):
+    if key is None:
+        default = {}
+    if not isinstance(entity, Entity):
+        return default
+    cfg = {}
+    if entity.hass and entity.entity_id:
+        cfg = {
+            **(entity.hass.data[DATA_CUSTOMIZE].get(entity.entity_id) or {}),
+            **(entity.hass.data[DOMAIN].get(DATA_CUSTOMIZE, {}).get(entity.entity_id) or {}),
+        }
+        if key is not None and key in cfg:
+            return cfg.get(key)
+    mls = []
+    if model := getattr(entity, 'model', None):
+        if hasattr(entity, 'customize_keys'):
+            mls.extend(entity.customize_keys)
+        mls.append(model)
+    for mod in mls:
+        cus = get_customize_via_model(mod)
+        cfg = {**cus, **cfg}
+    return cfg if key is None else cfg.get(key, default)
+
+class CustomConfigHelper:
+    def custom_config(self, key=None, default=None):
+        raise NotImplementedError
+
+    def custom_config_bool(self, key=None, default=None):
+        val = self.custom_config(key, default)
+        try:
+            val = cv.boolean(val)
+        except vol.Invalid:
+            val = default
+        return val
+
+    def custom_config_number(self, key=None, default=None):
+        num = default
+        val = self.custom_config(key)
+        if val is not None:
+            try:
+                num = float(f'{val}')
+            except (TypeError, ValueError):
+                num = default
+        return num
+
+    def custom_config_integer(self, key=None, default=None):
+        num = self.custom_config_number(key, default)
+        if num is not None:
+            num = int(num)
+        return num
+
+    def custom_config_list(self, key=None, default=None):
+        lst = self.custom_config(key)
+        if lst is None:
+            return default
+        if isinstance(lst, (int, float, bool)):
+            lst = [lst]
+        elif not isinstance(lst, list):
+            lst = f'{lst}'.split(',')
+            lst = list(map(lambda x: x.strip(), lst))
+        return lst
+
+    def custom_config_json(self, key=None, default=None):
+        dic = self.custom_config(key)
+        if dic:
+            if not isinstance(dic, (dict, list)):
+                try:
+                    dic = json.loads(dic or '{}')
+                except (TypeError, ValueError):
+                    dic = None
+            if isinstance(dic, (dict, list)):
+                return dic
+        return default
+
+
+def get_manifest(field=None, default=None):
+    manifest = {}
+    with open(f'{os.path.dirname(__file__)}/../manifest.json') as fil:
+        manifest = json.load(fil) or {}
+    return manifest.get(field, default) if field else manifest
+
+async def async_get_manifest(hass: HomeAssistant, field=None, default=None):
+    return await hass.async_add_executor_job(get_manifest, field, default)
+
+def local_zone(hass=None):
     try:
-        tz = tzlocal.get_localzone()
+        if isinstance(hass, HomeAssistant):
+            return get_time_zone(hass.config.time_zone)
+        return tzlocal.get_localzone()
     except KeyError:
-        tz = timezone.utc
-    return tz
+        pass
+    return DEFAULT_TIME_ZONE
+
+
+def in_china(hass=None):
+    if isinstance(hass, HomeAssistant):
+        if hass.config.time_zone in ['Asia/Shanghai', 'Asia/Hong_Kong']:
+            return True
+    try:
+        return f'{locale.getdefaultlocale()[0]}'[:3] == 'zh_'
+    except (KeyError, Exception):
+        pass
+    return False
 
 
 def wildcard_models(model):
@@ -25,12 +155,44 @@ def wildcard_models(model):
         model,
         wil,
         re.sub(r'^[^.]+\.', '*.', wil),
+        '*',
     ]
+
+
+def get_translation(key, keys=None):
+    dic = get_translations(*(keys or []))
+    val = dic.get(key, key)
+    if isinstance(val, str):
+        return val
+    return key
+
+
+def get_translations(*keys):
+    dic = {
+        **TRANSLATION_LANGUAGES,
+        **(TRANSLATION_LANGUAGES.get('_globals', {})),
+    }
+    for k in keys:
+        tls = TRANSLATION_LANGUAGES.get(k)
+        if not isinstance(tls, dict):
+            continue
+        dic.update(tls)
+    return dic
+
+def get_translation_langs(hass: HomeAssistant, langs=None):
+    lang = hass.config.language
+    if not langs:
+        return [lang]
+    if 'en' not in langs:
+        langs.append('en')
+    return language_util.matches(lang, langs)
 
 
 def is_offline_exception(exc):
     err = f'{exc}'
     ret = 'Unable to discover the device' in err
+    if not ret:
+        ret = 'No response from the device' in err
     if not ret:
         ret = 'OSError: [Errno 64] Host is down' in err
     if not ret:
@@ -38,37 +200,39 @@ def is_offline_exception(exc):
     return ret
 
 
-def analytics_track_event(event, action, label, value=0, **kwargs):
-    if True:
-        # disabled
-        return False
-    pag = f'https://miot-spec.com/s/{label}'
-    if kwargs:
-        pms = '&'.join([
-            f'{k}={v}'
-            for k, v in kwargs.items()
-            if v not in [None, '']
-        ])
-        pag = f"{pag}?{pms}"
+def update_attrs_with_suffix(attrs, new_dict):
+    updated_attrs = {}
+    for key, value in new_dict.items():
+        if key in attrs:
+            suffix = 2
+            while f"{key}_{suffix}" in attrs:
+                suffix += 1
+            updated_key = f"{key}_{suffix}"
+        else:
+            updated_key = key
+
+        updated_attrs[updated_key] = value
+    attrs.update(updated_attrs)
+
+
+async def async_analytics_track_event(hass: HomeAssistant, event, action, label, value=0, **kwargs):
     pms = {
-        'id': '1280294351',
-        'lg': f'{locale.getdefaultlocale()[0]}'.lower().replace('-', '_'),
-        'ei': '|'.join([event, action, label, f'{value}', '']),
-        'p': pag,
-        't': 'Home Assistant',
-        'rnd': int(time.time() / 2.67),
+        'model': label,
+        'event': event,
+        'action': action,
+        'label': label,
+        'value': value,
+        'locale': locale.getdefaultlocale()[0],
+        'tz': hass.config.time_zone,
+        'ver': await async_get_manifest(hass, 'version', ''),
+        **kwargs,
     }
-    url = 'https://ei.cnzz.com/stat.htm'
+    url = 'https://hacc.miot-spec.com/api/track'
     try:
-        return requests.get(url, params=pms, timeout=2)
+        session = async_get_clientsession(hass)
+        return await session.post(url, data=pms, timeout=3)
     except (Exception, ValueError):
         return False
-
-
-async def async_analytics_track_event(hass, *args, **kwargs):
-    return await hass.async_add_executor_job(
-        partial(analytics_track_event, *args, **kwargs)
-    )
 
 
 class RC4:

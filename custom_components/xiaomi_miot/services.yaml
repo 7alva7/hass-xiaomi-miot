@@ -20,12 +20,6 @@ send_command:
       required: true
       selector:
         object:
-    throw:
-      description: Throw result.
-      default: false
-      example: false
-      selector:
-        boolean:
 
 get_properties:
   description: Get miot properties.
@@ -39,13 +33,13 @@ get_properties:
           integration: xiaomi_miot
     mapping:
       description: Mapping for properties.
-      example: "{'power': {'siid': 2, 'piid': 1}}"
+      example: '[{"siid": 2, "piid": 1}, {"siid": 3, "piid": 1}]'
       required: true
       selector:
         object:
-    throw:
-      description: Throw properties.
-      default: true
+    update_entity:
+      description: Update to entity state attributes.
+      default: false
       example: true
       selector:
         boolean:
@@ -141,12 +135,6 @@ call_action:
       example: "['Turn on light', 1]"
       selector:
         object:
-    throw:
-      description: Throw result.
-      default: false
-      example: false
-      selector:
-        boolean:
 
 intelligent_speaker:
   description: Play text on Xiaoai speaker / Execute text directive / 小爱TTS及执行语音命令
@@ -177,12 +165,6 @@ intelligent_speaker:
       example: false
       selector:
         boolean:
-    throw:
-      description: Throw result.
-      default: false
-      example: false
-      selector:
-        boolean:
 
 xiaoai_wakeup:
   description: Wake up the Xiaoai speaker / 唤醒小爱音箱
@@ -196,16 +178,10 @@ xiaoai_wakeup:
           integration: xiaomi_miot
           domain: media_player
     text:
-      description: Text content for weak up.
+      description: Text content for wake up.
       example: Livingroom light
       selector:
         text:
-    throw:
-      description: Throw result.
-      default: false
-      example: false
-      selector:
-        boolean:
 
 get_device_data:
   description: Get xiaomi device data from cloud.
@@ -272,6 +248,15 @@ get_device_data:
             - day
             - week
             - month
+
+renew_devices:
+  description: Renew xiaomi devices.
+  fields:
+    username:
+      description: Xiaomi Account ID / Email / Phone.
+      required: false
+      selector:
+        text:
 
 get_token:
   description: Get xiaomi device token.

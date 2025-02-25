@@ -2,18 +2,23 @@
 import logging
 import math
 
-from homeassistant.const import *  # noqa: F401
+from homeassistant.const import (
+    ATTR_TEMPERATURE,
+    STATE_OFF,
+    STATE_ON,
+    UnitOfTemperature,
+)
 from homeassistant.components.water_heater import (
     DOMAIN as ENTITY_DOMAIN,
     WaterHeaterEntity,
-    SUPPORT_TARGET_TEMPERATURE,
-    SUPPORT_OPERATION_MODE,
+    WaterHeaterEntityFeature,  # v2022.5
 )
 
 from . import (
     DOMAIN,
     CONF_MODEL,
     XIAOMI_CONFIG_SCHEMA as PLATFORM_SCHEMA,  # noqa: F401
+    HassEntry,
     MiotToggleEntity,
     async_setup_config_entry,
     bind_services_to_entries,
@@ -33,6 +38,7 @@ SERVICE_TO_METHOD = {}
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
+    HassEntry.init(hass, config_entry).new_adder(ENTITY_DOMAIN, async_add_entities)
     await async_setup_config_entry(hass, config_entry, async_setup_platform, async_add_entities, ENTITY_DOMAIN)
 
 
@@ -44,7 +50,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     spec = hass.data[DOMAIN]['miot_specs'].get(model)
     entities = []
     if isinstance(spec, MiotSpec):
-        for srv in spec.get_services(ENTITY_DOMAIN, 'kettle'):
+        for srv in spec.get_services(ENTITY_DOMAIN, 'kettle', 'water_dispenser'):
             if not srv.get_property('mode', 'target_temperature'):
                 continue
             entities.append(MiotWaterHeaterEntity(config, srv))
@@ -69,9 +75,9 @@ class MiotWaterHeaterEntity(MiotToggleEntity, WaterHeaterEntity):
         self._prev_target_temp = None
 
         if self._prop_target_temp:
-            self._supported_features |= SUPPORT_TARGET_TEMPERATURE
+            self._supported_features |= WaterHeaterEntityFeature.TARGET_TEMPERATURE
         if self._prop_modes:
-            self._supported_features |= SUPPORT_OPERATION_MODE
+            self._supported_features |= WaterHeaterEntityFeature.OPERATION_MODE
 
     async def async_update(self):
         await super().async_update()
@@ -80,7 +86,7 @@ class MiotWaterHeaterEntity(MiotToggleEntity, WaterHeaterEntity):
         if self._prop_power:
             if not self._prop_power.readable and self._prop_status:
                 # https://github.com/al-one/hass-xiaomi-miot/issues/30
-                val = self._prop_status.from_dict(self._state_attrs)
+                val = self._prop_status.from_device(self.device)
                 if val is not None:
                     off = val in self._prop_status.list_search('Off')
                     await self.async_update_attrs({
@@ -96,11 +102,11 @@ class MiotWaterHeaterEntity(MiotToggleEntity, WaterHeaterEntity):
             mds = self._prop_mode.list_descriptions()
         if sta is None or sta not in mds:
             if self._prop_status:
-                val = self._prop_status.from_dict(self._state_attrs)
+                val = self._prop_status.from_device(self.device)
                 if val is not None:
                     sta = self._prop_status.list_description(val)
         if sta is None and self._prop_power and self._prop_power.readable:
-            sta = STATE_ON if self._prop_power.from_dict(self._state_attrs) else STATE_OFF
+            sta = STATE_ON if self._prop_power.from_device(self.device) else STATE_OFF
         if sta:
             sta = str(sta).lower()
         return sta
@@ -109,7 +115,7 @@ class MiotWaterHeaterEntity(MiotToggleEntity, WaterHeaterEntity):
     def current_operation(self):
         """Return current operation ie. eco, electric, performance, ..."""
         for p in self._prop_modes:
-            val = p.from_dict(self._state_attrs)
+            val = p.from_device(self.device)
             if val is not None:
                 return p.list_description(val)
         return None
@@ -132,20 +138,20 @@ class MiotWaterHeaterEntity(MiotToggleEntity, WaterHeaterEntity):
     def current_temperature(self):
         """Return the current temperature."""
         if self._prop_temperature:
-            return round(self._prop_temperature.from_dict(self._state_attrs) or 0, 2)
+            return round(self._prop_temperature.from_device(self.device) or 0, 2)
         return None
 
     @property
     def temperature_unit(self):
         prop = self._prop_temperature or self._prop_target_temp
         if prop:
-            if prop.unit in ['celsius', TEMP_CELSIUS]:
-                return TEMP_CELSIUS
-            if prop.unit in ['fahrenheit', TEMP_FAHRENHEIT]:
-                return TEMP_FAHRENHEIT
-            if prop.unit in ['kelvin', TEMP_KELVIN]:
-                return TEMP_KELVIN
-        return TEMP_CELSIUS
+            if prop.unit in ['celsius', UnitOfTemperature.CELSIUS]:
+                return UnitOfTemperature.CELSIUS
+            if prop.unit in ['fahrenheit', UnitOfTemperature.FAHRENHEIT]:
+                return UnitOfTemperature.FAHRENHEIT
+            if prop.unit in ['kelvin', UnitOfTemperature.KELVIN]:
+                return UnitOfTemperature.KELVIN
+        return UnitOfTemperature.CELSIUS
 
     def set_temperature(self, **kwargs):
         """Set new target temperature."""
@@ -170,7 +176,7 @@ class MiotWaterHeaterEntity(MiotToggleEntity, WaterHeaterEntity):
     def target_temperature(self):
         """Return the temperature we try to reach."""
         if self._prop_target_temp:
-            val = round(self._prop_target_temp.from_dict(self._state_attrs) or 0, 2)
+            val = round(self._prop_target_temp.from_device(self.device) or 0, 2)
             if val:
                 self._prev_target_temp = val
             elif self._prev_target_temp:
