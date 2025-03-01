@@ -1,11 +1,15 @@
 from enum import Enum
+from typing import Union
 
-from .device_customizes import DEVICE_CUSTOMIZES  # noqa
+from homeassistant.const import __version__ as HAVERSION  # noqa
+from awesomeversion import AwesomeVersion
+from .device_customizes import DEVICE_CUSTOMIZES, GLOBAL_CONVERTERS  # noqa
 from .miot_local_devices import MIOT_LOCAL_MODELS  # noqa
 from .translation_languages import TRANSLATION_LANGUAGES  # noqa
 
 DOMAIN = 'xiaomi_miot'
 DEFAULT_NAME = 'Xiaomi Miot'
+HA_VERSION = AwesomeVersion(HAVERSION)
 
 CONF_MODEL = 'model'
 CONF_XIAOMI_CLOUD = 'xiaomi_cloud'
@@ -19,6 +23,10 @@ SUPPORTED_DOMAINS = [
     'sensor',
     'binary_sensor',
     'switch',
+    'number',
+    'select',
+    'button',
+    'text',
     'light',
     'fan',
     'climate',
@@ -44,45 +52,63 @@ CLOUD_SERVERS = {
 }
 
 try:
-    # hass 2020.12.2
-    from homeassistant.components.number import DOMAIN as DOMAIN_NUMBER
-    SUPPORTED_DOMAINS.append(DOMAIN_NUMBER)
+    # python 3.11
+    from enum import StrEnum
 except (ModuleNotFoundError, ImportError):
-    DOMAIN_NUMBER = None
+    class StrEnum(str, Enum):
+        pass
 
 try:
-    # hass 2021.6
-    from homeassistant.components.sensor import STATE_CLASS_MEASUREMENT
+    # hass 2023.3
+    from homeassistant.util.json import JsonObjectType
 except (ModuleNotFoundError, ImportError):
-    STATE_CLASS_MEASUREMENT = None
+    JsonObjectType = dict
 
 try:
-    # hass 2021.7
-    from homeassistant.components.select import DOMAIN as DOMAIN_SELECT
-    SUPPORTED_DOMAINS.append(DOMAIN_SELECT)
+    # hass 2023.7
+    from homeassistant.core import ServiceResponse, SupportsResponse
 except (ModuleNotFoundError, ImportError):
-    DOMAIN_SELECT = None
+    SupportsResponse = None
+    ServiceResponse = Union[dict, None]
 
 try:
-    # hass 2021.9
-    from homeassistant.components.sensor import STATE_CLASS_TOTAL_INCREASING
+    # hass 2024.10
+    from homeassistant.components.camera import CameraState
 except (ModuleNotFoundError, ImportError):
-    STATE_CLASS_TOTAL_INCREASING = None
+    class CameraState(StrEnum):
+        RECORDING = 'recording'
+        STREAMING = 'streaming'
+        IDLE = 'idle'
 
 try:
-    # hass 2021.12
-    from homeassistant.components.button import DOMAIN as DOMAIN_BUTTON
-    SUPPORTED_DOMAINS.append(DOMAIN_BUTTON)
+    # hass 2024.11
+    from homeassistant.core_config import DATA_CUSTOMIZE
 except (ModuleNotFoundError, ImportError):
-    DOMAIN_BUTTON = None
+    from homeassistant.helpers.entity import DATA_CUSTOMIZE
 
 try:
-    # hass 2022.12
-    from homeassistant.helpers.entity import EntityCategory
-    ENTITY_CATEGORY_VIA_ENUM = True
+    # hass 2024.11
+    from homeassistant.components.alarm_control_panel import AlarmControlPanelState
 except (ModuleNotFoundError, ImportError):
-    class EntityCategory(Enum):
-        CONFIG = 'config'
-        DIAGNOSTIC = 'diagnostic'
-        SYSTEM = 'system'
-    ENTITY_CATEGORY_VIA_ENUM = False
+    class AlarmControlPanelState(StrEnum):
+        """Alarm control panel entity states."""
+        DISARMED = "disarmed"
+        ARMED_HOME = "armed_home"
+        ARMED_AWAY = "armed_away"
+        ARMED_NIGHT = "armed_night"
+        ARMED_VACATION = "armed_vacation"
+        ARMED_CUSTOM_BYPASS = "armed_custom_bypass"
+        PENDING = "pending"
+        ARMING = "arming"
+        DISARMING = "disarming"
+        TRIGGERED = "triggered"
+        
+try:
+    # hass 2025.1
+    from homeassistant.components.vacuum import VacuumActivity
+except (ModuleNotFoundError, ImportError):
+    class VacuumActivity(StrEnum):
+        CLEANING = "cleaning"
+        DOCKED = "docked"
+        RETURNING = "returning"
+        ERROR = "error"

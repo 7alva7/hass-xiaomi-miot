@@ -1,5 +1,7 @@
+from homeassistant.helpers.template import Template
+
 CUSTOM_TEMPLATES = {
-    # https://iot.mi.com/new/doc/embedded-development/ble/object-definition#%E7%89%99%E5%88%B7%E4%BA%8B%E4%BB%B6
+    # https://iot.mi.com/new/doc/accesses/direct-access/embedded-development/ble/object-definition#%E7%89%99%E5%88%B7%E4%BA%8B%E4%BB%B6
     'ble_toothbrush_events': "{%- set dat = props.get('event.16') | default('{}',true) | from_json %}"
                              "{%- set tim = dat.timestamp | default(0,true) | timestamp_local %}"
                              "{%- set val = dat.get('value',[]).0 | default('0000') %}"
@@ -14,7 +16,7 @@ CUSTOM_TEMPLATES = {
                              "'score': num,"
                              "'timestamp': tim,"
                              "} }}",
-    # https://iot.mi.com/new/doc/embedded-development/ble/object-definition#%E9%94%81%E4%BA%8B%E4%BB%B6
+    # https://iot.mi.com/new/doc/accesses/direct-access/embedded-development/ble/object-definition#%E9%94%81%E4%BA%8B%E4%BB%B6
     'ble_lock_events': "{%- set mark_data = props.get('event.6') | default('{}',true) | from_json %}"
                        "{%- set mark = mark_data.get('value',[]).0 | default('') %}"
                        "{%- set door_data = props.get('event.7') | default('{}',true) | from_json %}"
@@ -32,9 +34,9 @@ CUSTOM_TEMPLATES = {
                        "{%- set key_results = ['success','fail','timeout','blurry','less','dry','wet'] %}"
                        "{%- set door_states = ['open','close','close_timeout','knock','breaking','stuck'] %}"
                        "{%- set lock_actions = ['outside_unlock','lock','anti_lock_on','anti_lock_off',"
-                       "'inside_unlock','lock_inside','child_lock_on','child_lock_off'] %}"
+                       "'inside_unlock','lock_inside','child_lock_on','child_lock_off','lock_outside'] %}"
                        "{%- set lock_methods = ['bluetooth','password','biological','key','turntable','nfc',"
-                       "'one-time password','two-step verification','coercion','homekit','manual','automatic'] %}"
+                       "'one_time_password','two_step_verification','coercion','homekit','manual','automatic'] %}"
                        "{{ {"
                        "'fingerprint_id': key_types[mark[:8]] | default(mark[:8]),"
                        "'fingerprint_result': key_results[mark[8:10] | int(-1,16)] | default('unknown'),"
@@ -48,7 +50,7 @@ CUSTOM_TEMPLATES = {
                        "'lock_data': lock,"
                        "'timestamp': lock_data.timestamp | default(0,true) | timestamp_local,"
                        "} }}",
-    # https://iot.mi.com/new/doc/embedded-development/ble/object-definition#%E7%83%9F%E9%9B%BE%E5%B1%9E%E6%80%A7
+    # https://iot.mi.com/new/doc/accesses/direct-access/embedded-development/ble/object-definition#%E7%83%9F%E9%9B%BE%E5%B1%9E%E6%80%A7
     'ble_sensor_smoke': "{%- set val = props.get('prop.4117','00') | int(0,16) %}"
                         "{{ {"
                         "'smoke_status': val == 1,"
@@ -79,7 +81,7 @@ CUSTOM_TEMPLATES = {
                               "{%- set els = ['outside_unlock','lock','anti_lock_on','anti_lock_off',"
                               "'inside_unlock','lock_inside','child_lock_on','child_lock_off','unknown'] %}"
                               "{%- set mls = ['bluetooth','password','biological','key','turntable',"
-                              "'nfc','one-time password','two-step verification','coercion','homekit',"
+                              "'nfc','one_time_password','two_step_verification','coercion','homekit',"
                               "'manual','automatic','unknown'] %}"
                               "{{ {"
                               "'lock_event': evt,"
@@ -182,3 +184,14 @@ CUSTOM_TEMPLATES = {
                                      "'month': dat.month | round(3),"
                                      "} }}",
 }
+
+
+def template(value, hass):
+    if value is None:
+        raise ValueError('template value is None')
+    if isinstance(value, (list, dict, Template)):
+        raise TypeError('template value should be a string')
+    value = CUSTOM_TEMPLATES.get(value, value)
+    template_value = Template(str(value), hass)
+    template_value.ensure_valid()
+    return template_value

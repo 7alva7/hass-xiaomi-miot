@@ -4,5 +4,6 @@
   "zip_release": true,
   "filename": "xiaomi_miot.zip",
   "render_readme": true,
-  "iot_class": ["Local Polling", "Cloud Polling"]
+  "hide_default_branch": true,
+  "homeassistant": "2023.9.0"
 }
